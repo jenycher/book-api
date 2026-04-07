@@ -391,7 +391,7 @@ docker pull jenycher/book-api:v1.0.1
 docker build -t jenycher/book-api:v1.0.1 .
 
 # Сборка микросервиса счётчика
-cd counter-api && docker build -t jenycher/counter-api:v1.0.1 . && cd ..
+cd counter-api && docker build -t jenycher/counter-api:v2.0.0 . && cd ..
 ```
 
 ### Запуск через docker-compose
