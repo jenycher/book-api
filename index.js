@@ -1,7 +1,8 @@
 ﻿const express = require('express');
 const path = require('path');
 const multer = require('multer');
-const upload = require('./middleware/upload');
+const mongoose = require('mongoose');
+const connectDB = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,23 +19,7 @@ async function callCounter(bookId, method = 'GET') {
     return response.json();
 }
 
-// ============== ТЕСТОВЫЕ МАРШРУТЫ ==============
-app.get('/test-simple', (req, res) => {
-    res.json({ message: 'Simple test works!' });
-});
-
-app.get('/api/test-counter/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const views = await callCounter(id, 'POST');
-        res.json({ bookId: id, views: views.count });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ============== ПРЯМЫЕ МАРШРУТЫ К МИКРОСЕРВИСУ СЧЁТЧИКА (ПРОКСИ) ==============
-// Получить значение счётчика
+// ============== ПРЯМЫЕ МАРШРУТЫ К МИКРОСЕРВИСУ СЧЁТЧИКА ==============
 app.get('/counter/:bookId', async (req, res) => {
     const { bookId } = req.params;
     try {
@@ -45,7 +30,6 @@ app.get('/counter/:bookId', async (req, res) => {
     }
 });
 
-// Увеличить счётчик
 app.post('/counter/:bookId/incr', async (req, res) => {
     const { bookId } = req.params;
     try {
@@ -56,43 +40,39 @@ app.post('/counter/:bookId/incr', async (req, res) => {
     }
 });
 
+// ============== ПОДКЛЮЧЕНИЕ К MONGODB ==============
+connectDB();
+
+// ============== НАСТРОЙКА VIEWS И MIDDLEWARE ==============
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+
 // ============== ПОДКЛЮЧЕНИЕ РОУТЕРОВ ==============
 const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
 const webRoutes = require('./routes/web');
 
-// Настройка EJS
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use('/public', express.static(path.join(__dirname, 'public')));
-
-// ============== API МАРШРУТЫ ==============
+// API маршруты
 app.use('/api/user', authRoutes);
 app.use('/api/books', bookRoutes({ 
     getCounter: (id) => callCounter(id), 
     incrementCounter: (id) => callCounter(id, 'POST') 
 }));
 
-// ============== ВЕБ МАРШРУТЫ ==============
+// Веб-маршруты
 app.use('/', webRoutes);
 
 // ============== ОБРАБОТКА ОШИБОК ==============
 app.use((err, req, res, next) => {
-    console.error('❌ Ошибка:', err.stack);
+    console.error('❌ Ошибка:', err.message);
     
     if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
-            if (req.path.startsWith('/api/')) {
-                return res.status(400).json({ message: 'Файл слишком большой. Максимальный размер 50MB.' });
-            }
-            return res.status(400).render('error', { 
-                title: 'Ошибка', 
-                message: 'Файл слишком большой. Максимальный размер 50MB.' 
-            });
+            return res.status(400).json({ message: 'Файл слишком большой. Максимальный размер 50MB.' });
         }
     }
     
@@ -108,7 +88,6 @@ app.use((err, req, res, next) => {
 
 // Обработка 404
 app.use((req, res) => {
-    console.log('⚠️ 404 для пути:', req.path);
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ message: 'API маршрут не найден' });
     }
@@ -123,27 +102,15 @@ app.use((req, res) => {
 app.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
-║                    🚀 СЕРВЕР ЗАПУЩЕН 🚀                          ║
+║                    📚 БИБЛИОТЕКА ЗАПУЩЕНА 📚                     ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-📡 ПОРТ: ${PORT}
+📡 Порт: ${PORT}
 🔄 Counter service: ${COUNTER_SERVICE_URL}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🧪 ТЕСТОВЫЕ МАРШРУТЫ:
-  ┌─────────────────────────────────────────────────────────────┐
-  │ GET  /test-simple                                           │
-  │ GET  /api/test-counter/:id                                  │
-  └─────────────────────────────────────────────────────────────┘
-
-📊 МАРШРУТЫ СЧЁТЧИКА (прямой доступ к микросервису):
-  ┌─────────────────────────────────────────────────────────────┐
-  │ GET    /counter/:bookId          - получить значение        │
-  │ POST   /counter/:bookId/incr     - увеличить на 1           │
-  └─────────────────────────────────────────────────────────────┘
-
-📚 API МАРШРУТЫ (основное приложение):
+📚 API МАРШРУТЫ:
   ┌─────────────────────────────────────────────────────────────┐
   │ GET    /api/books                - список всех книг         │
   │ GET    /api/books/:id            - просмотр книги (+1 view) │
@@ -153,42 +120,37 @@ app.listen(PORT, () => {
   │ GET    /api/books/:id/download   - скачать файл книги       │
   └─────────────────────────────────────────────────────────────┘
 
-🔐 АУТЕНТИФИКАЦИЯ:
-  ┌─────────────────────────────────────────────────────────────┐
-  │ POST   /api/user/login           - вход в систему           │
-  └─────────────────────────────────────────────────────────────┘
-
 🌐 ВЕБ-ИНТЕРФЕЙС:
   ┌─────────────────────────────────────────────────────────────┐
   │ GET    /                         - главная страница         │
   │ GET    /books                    - список книг              │
   │ GET    /books/create             - добавить книгу           │
-  │ GET    /books/:id                - просмотр книги (+1 view) │
+  │ GET    /books/:id                - просмотр книги           │
   │ GET    /books/:id/edit           - редактировать книгу      │
-  │ POST   /books/:id/update         - обновить книгу           │
-  │ POST   /books/:id/delete         - удалить книгу            │
-  │ GET    /books/:id/download       - скачать книгу            │
   └─────────────────────────────────────────────────────────────┘
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-💡 ПРИМЕРЫ ЗАПРОСОВ:
+💡 Примеры запросов:
 
   # Получить список книг
-  curl.exe http://localhost:${PORT}/api/books
+  curl http://localhost:${PORT}/api/books
 
-  # Просмотреть книгу (увеличит счётчик)
-  curl.exe http://localhost:${PORT}/api/books/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef
-
-  # Получить значение счётчика
-  curl.exe http://localhost:${PORT}/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef
-
-  # Увеличить счётчик
-  curl.exe -X POST http://localhost:${PORT}/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef/incr
+  # Создать книгу
+  curl -X POST http://localhost:${PORT}/api/books \\
+    -H "Content-Type: application/json" \\
+    -d "{\\"title\\":\\"Новая книга\\",\\"authors\\":\\"Автор\\"}"
 
   # Открыть в браузере
-  http://localhost:${PORT}/books/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef
+  http://localhost:${PORT}/books
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
+});
+
+// Обработка закрытия MongoDB
+process.on('SIGINT', async () => {
+    await mongoose.disconnect();
+    console.log('\n🛑 MongoDB отключена');
+    process.exit(0);
 });

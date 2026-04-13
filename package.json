@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
   },
   "keywords": [
     "express",
@@ -19,6 +21,7 @@
   "dependencies": {
     "ejs": "^5.0.1",
     "express": "^5.2.1",
+    "mongoose": "^9.4.1",
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^2.7.0",
     "redis": "^5.11.0",
@@ -28,3 +31,6 @@
     "nodemon": "^2.0.22"
   }
 }
+
+
+

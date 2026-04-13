@@ -4,7 +4,10 @@ RESTful API для управления коллекцией книг с воз�
 Простой и удобный сервис для хранения информации о книгах с возможностью 
 создания, чтения, обновления и удаления записей, а также скачивания файлов книг.
 
-**✨ Новое:** Добавлен счётчик просмотров книг с отдельным микросервисом и контейнеризация через Docker!
+**✨ Новое:** 
+- **MongoDB** для постоянного хранения данных книг
+- **Mongoose ODM** для работы с базой данных
+- Полная контейнеризация через Docker Compose
 
 ## Содержание
 - [Технологии](#технологии)
@@ -18,6 +21,7 @@ RESTful API для управления коллекцией книг с воз�
 - [Эндпоинты API](#эндпоинты-api)
 - [Примеры запросов](#примеры-запросов)
 - [Работа с файлами](#работа-с-файлами)
+- [База данных](#база-данных)
 - [Тестирование в Postman](#тестирование-в-postman)
 - [Структура проекта](#структура-проекта)
 - [Docker](#docker)
@@ -27,6 +31,8 @@ RESTful API для управления коллекцией книг с воз�
 
 - **Node.js** - среда выполнения JavaScript
 - **Express.js** - веб-фреймворк для Node.js
+- **MongoDB** - база данных для хранения книг
+- **Mongoose** - ODM для работы с MongoDB
 - **EJS** - шаблонизатор для создания веб-интерфейса
 - **Multer** - middleware для обработки multipart/form-data (загрузка файлов)
 - **UUID** - генерация уникальных идентификаторов
@@ -49,6 +55,7 @@ docker-compose up --build
 После запуска откройте в браузере:
 - **Веб-интерфейс:** http://localhost:3000
 - **API:** http://localhost:3000/api/books
+- **MongoDB Admin:** http://localhost:8081 (логин: mongoexpressuser, пароль: mongoexpresspass)
 
 ## Установка и запуск
 
@@ -56,6 +63,7 @@ docker-compose up --build
 - Установленный Node.js (версия 20 или выше)
 - Установленный npm (менеджер пакетов Node.js)
 - **Для Docker:** Установленный Docker Desktop
+- **Для локального запуска:** Установленная MongoDB
 
 ### Локальный запуск
 
@@ -71,7 +79,16 @@ npm install
 cd counter-api && npm install && cd ..
 ```
 
-3. Запустите сервер:
+3. Убедитесь, что MongoDB запущена локально:
+```bash
+# Windows
+net start MongoDB
+
+# Mac/Linux
+sudo systemctl start mongod
+```
+
+4. Запустите сервер:
 ```bash
 npm start
 # или в режиме разработки
@@ -82,7 +99,7 @@ npm run dev
 
 ### Запуск через Docker
 
-#### Запуск всех сервисов (основное приложение + счётчик)
+#### Запуск всех сервисов (MongoDB + основное приложение + счётчик)
 ```bash
 docker-compose up --build
 ```
@@ -97,6 +114,11 @@ docker-compose up -d --build
 docker-compose down
 ```
 
+#### Остановка с удалением томов (очистка данных)
+```bash
+docker-compose down -v
+```
+
 #### Просмотр логов
 ```bash
 docker-compose logs -f
@@ -106,6 +128,7 @@ docker-compose logs -f
 ```bash
 docker-compose logs -f book-api
 docker-compose logs -f counter-api
+docker-compose logs -f mongo
 ```
 
 ## Веб-интерфейс
@@ -169,10 +192,10 @@ docker-compose logs -f counter-api
 
 ```bash
 # Получить счётчик
-curl.exe http://localhost:3001/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef
+curl http://localhost:3001/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef
 
 # Увеличить счётчик
-curl.exe -X POST http://localhost:3001/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef/incr
+curl -X POST http://localhost:3001/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef/incr
 ```
 
 ### Хранение данных
@@ -201,18 +224,19 @@ counter-api/data/
 
 ## Структура данных
 
-### Книга
+### Книга (MongoDB коллекция `books`)
 ```javascript
 {
   id: "string",           // Уникальный идентификатор (генерируется автоматически)
-  title: "string",        // Название книги
+  title: "string",        // Название книги (обязательное поле)
   description: "string",  // Описание книги
   authors: "string",      // Автор(ы) книги
-  favorite: boolean,      // Отметка "избранное" (true/false)
+  favorite: "string",     // Отметка "избранное"
   fileCover: "string",    // Имя файла обложки
   fileName: "string",     // Оригинальное имя файла книги
   fileBook: "string",     // Имя сохранённого файла книги
-  views: number           // Количество просмотров (добавляется автоматически)
+  createdAt: "date",      // Дата создания (автоматически)
+  updatedAt: "date"       // Дата обновления (автоматически)
 }
 ```
 
@@ -231,7 +255,7 @@ counter-api/data/
 | Метод | URL | Действие | Ответ |
 |--------|-----|----------|--------|
 | POST | `/api/user/login` | Авторизация пользователя | `201` и объект пользователя |
-| GET | `/api/books` | Получить все книги (со счётчиками) | Массив всех книг с полем `views` |
+| GET | `/api/books` | Получить все книги | Массив всех книг из MongoDB |
 | GET | `/api/books/:id` | Получить книгу по ID **(+1 просмотр)** | Объект книги с полем `views` или `404` |
 | POST | `/api/books` | Создать книгу с файлами | Созданная книга с ID |
 | PUT | `/api/books/:id` | Обновить книгу с файлами | Обновлённая книга или `404` |
@@ -254,22 +278,24 @@ counter-api/data/
 
 ## Примеры запросов
 
-### 1. Получение всех книг (со счётчиками)
+### 1. Получение всех книг
 **GET** `/api/books`
 
 **Ответ** (статус 200):
 ```json
 [
     {
+        "_id": "67f9a123456789abcdef0123",
         "id": "550e8400-e29b-41d4-a716-446655440000",
         "title": "Война и мир",
         "description": "Классический роман Льва Толстого",
         "authors": "Лев Толстой",
-        "favorite": true,
+        "favorite": "true",
         "fileCover": "cover.jpg",
         "fileName": "война_и_мир.pdf",
         "fileBook": "book.pdf",
-        "views": 42
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "updatedAt": "2024-01-15T10:30:00.000Z"
     }
 ]
 ```
@@ -280,33 +306,22 @@ counter-api/data/
 **Ответ** (статус 200):
 ```json
 {
+    "_id": "67f9a123456789abcdef0123",
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "title": "Война и мир",
     "description": "Классический роман Льва Толстого",
     "authors": "Лев Толстой",
-    "favorite": true,
+    "favorite": "true",
     "fileCover": "cover.jpg",
     "fileName": "война_и_мир.pdf",
     "fileBook": "book.pdf",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z",
     "views": 43
 }
 ```
 
-### 3. Работа со счётчиком
-
-```bash
-# Получить значение счётчика
-curl.exe http://localhost:3001/counter/550e8400-e29b-41d4-a716-446655440000
-
-# Увеличить счётчик
-curl.exe -X POST http://localhost:3001/counter/550e8400-e29b-41d4-a716-446655440000/incr
-
-# Через прокси основного сервера
-curl.exe http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000
-curl.exe -X POST http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000/incr
-```
-
-### 4. Создание новой книги с файлами
+### 3. Создание новой книги
 **POST** `/api/books`
 
 **Тип запроса**: `multipart/form-data`
@@ -319,6 +334,20 @@ curl.exe -X POST http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440
 | favorite | Text | true |
 | fileCover | File | обложка.jpg |
 | fileBook | File | война_и_мир.pdf |
+
+### 4. Работа со счётчиком
+
+```bash
+# Получить значение счётчика
+curl http://localhost:3001/counter/550e8400-e29b-41d4-a716-446655440000
+
+# Увеличить счётчик
+curl -X POST http://localhost:3001/counter/550e8400-e29b-41d4-a716-446655440000/incr
+
+# Через прокси основного сервера
+curl http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000
+curl -X POST http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000/incr
+```
 
 ## Работа с файлами
 
@@ -334,10 +363,52 @@ curl.exe -X POST http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440
 - Обложки сохраняются в папку: `/public/img/`
 - Файлы книг сохраняются в папку: `/public/books/`
 
+## База данных
+
+### MongoDB
+
+Проект использует MongoDB для хранения данных о книгах через Mongoose ODM.
+
+**Структура базы данных:**
+- **Database:** `library_db`
+- **Collection:** `books`
+
+**Подключение:**
+- Локально: `mongodb://localhost:27017/library_db`
+- Docker: `mongodb://admin:secretpassword@mongo:27017/library_db?authSource=admin`
+
+### Mongoose Схема
+
+```javascript
+const bookSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
+    authors: { type: String, default: '' },
+    favorite: { type: String, default: '' },
+    fileCover: { type: String, default: '' },
+    fileName: { type: String, default: '' },
+    fileBook: { type: String, default: '' }
+}, { timestamps: true });
+```
+
+### MongoDB Admin (mongo-express)
+
+При запуске через Docker Compose доступен веб-интерфейс для управления MongoDB:
+- **URL:** http://localhost:8081
+- **Логин:** `mongoexpressuser`
+- **Пароль:** `mongoexpresspass`
+
 ## Структура проекта
 
 ```
 book-api/
+│
+├── config/
+│   └── db.js               # Подключение к MongoDB
+│
+├── models/
+│   └── Book.js             # Mongoose схема книги
 │
 ├── views/                  # Шаблоны EJS
 │   ├── layout.ejs
@@ -345,14 +416,14 @@ book-api/
 │   ├── error.ejs
 │   └── books/
 │       ├── index.ejs
-│       ├── view.ejs       # Просмотр книги (со счётчиком)
+│       ├── view.ejs
 │       ├── create.ejs
 │       └── edit.ejs
 │
 ├── routes/
 │   ├── auth.js
-│   ├── books.js           # API роуты для книг
-│   └── web.js             # Веб-роуты (с вызовом счётчика)
+│   ├── books.js            # API роуты для книг (MongoDB)
+│   └── web.js              # Веб-роуты
 │
 ├── middleware/
 │   └── upload.js
@@ -361,7 +432,7 @@ book-api/
 │   ├── img/
 │   └── books/
 │
-├── counter-api/           # МИКРОСЕРВИС СЧЁТЧИКА
+├── counter-api/            # МИКРОСЕРВИС СЧЁТЧИКА
 │   ├── src/
 │   │   └── server.js
 │   ├── data/
@@ -377,37 +448,33 @@ book-api/
 
 ## Docker
 
+### Сервисы в Docker Compose
+
+| Сервис | Порт | Описание |
+|--------|------|----------|
+| `mongo` | 27017 | База данных MongoDB |
+| `mongo-express` | 8081 | Веб-админка MongoDB |
+| `book-api` | 3000 | Основное приложение |
+| `counter-api` | 3001 | Микросервис счётчика |
+
 ### Образы
 
-Основной образ приложения опубликован на Docker Hub:
-```
-docker pull jenycher/book-api:v1.0.1
+```bash
+# Основной образ приложения
+docker pull jenycher/book-api:v1.0.0
+
+# Микросервис счётчика
+docker pull jenycher/counter-api:v2.0.0
 ```
 
 ### Сборка образов
 
 ```bash
 # Сборка основного приложения
-docker build -t jenycher/book-api:v1.0.1 .
+docker build -t jenycher/book-api:v1.0.0 .
 
 # Сборка микросервиса счётчика
 cd counter-api && docker build -t jenycher/counter-api:v2.0.0 . && cd ..
-```
-
-### Запуск через docker-compose
-
-```bash
-# Запуск всех сервисов
-docker-compose up --build
-
-# Запуск в фоновом режиме
-docker-compose up -d --build
-
-# Остановка
-docker-compose down
-
-# Просмотр логов
-docker-compose logs -f
 ```
 
 ### Переменные окружения
@@ -416,30 +483,15 @@ docker-compose logs -f
 |------------|----------------------|----------|
 | PORT | 3000 | Порт для запуска основного сервера |
 | COUNTER_SERVICE_URL | http://counter-api:3001 | URL микросервиса счётчика |
+| MONGODB_URI | mongodb://admin:secretpassword@mongo:27017/library_db?authSource=admin | Подключение к MongoDB |
 
 ### Docker volumes
 
-- `./public/uploads:/app/public/uploads` — сохранение загруженных файлов
-- `./counter-api/data:/app/data` — сохранение данных счётчика
+- `mongo_data` - данные MongoDB
+- `./public/uploads:/app/public/uploads` - загруженные файлы
+- `./counter-api/data:/app/data` - данные счётчика
 
 ## Лицензия
 
 ISC
-```
 
-## Основные изменения в README
-
-| Изменение | Описание |
-|:---|:---|
-| **Быстрый старт** | Добавлен новый раздел с самой простой командой запуска |
-| **Клонирование** | Теперь `git clone https://github.com/jenycher/book-api.git` |
-| **Упрощён путь** | Нет необходимости заходить в подпапку `nodejs/book-api` |
-| **Docker Hub** | Образ опубликован как `jenycher/book-api:v1.0` |
-
-## Теперь ваш репозиторий готов!
-
-```bash
-# Проверьте, что всё работает
-git clone https://github.com/jenycher/book-api.git
-cd book-api
-docker-compose up --build
