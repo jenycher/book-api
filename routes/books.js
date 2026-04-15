@@ -57,8 +57,8 @@ module.exports = ({ getCounter, incrementCounter }) => {
             const newBook = new Book({
                 id: uuid(),
                 title: title || '',
-                description: description || '',
-                authors: authors || '',
+                description: description || null,
+                authors: authors || null,
                 favorite: favorite === 'true' || favorite === true || false,
                 fileCover: req.files?.fileCover?.[0]?.filename || '',
                 fileName: req.files?.fileBook?.[0]?.originalname || '',

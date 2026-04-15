@@ -13,27 +13,27 @@ const bookSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        default: '',
+        default: null,
     },
     authors: {
         type: String,
-        default: '',
+        default: null,
     },
     favorite: {
         type: String,
-        default: '',
+        default: false,
     },
     fileCover: {
         type: String,
-        default: '',
+        default: null,
     },
     fileName: {
         type: String,
-        default: '',
+        default: null,
     },
     fileBook: {
         type: String,
-        default: '',
+        default: null,
     }
 }, {
     timestamps: true, // добавляет поля createdAt и updatedAt
