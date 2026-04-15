@@ -38,6 +38,8 @@ services:
     environment:
       - PORT=3000
       - COUNTER_SERVICE_URL=http://counter-api:3001
+      - MONGODB_URI=mongodb://admin:secretpassword@mongo:27017/library_db?authSource=admin
+      - DOCKER_ENV=true
     depends_on:
       - counter-api
       - mongo

@@ -5,8 +5,10 @@ RESTful API для управления коллекцией книг с воз�
 создания, чтения, обновления и удаления записей, а также скачивания файлов книг.
 
 **✨ Новое:** 
-- **MongoDB** для постоянного хранения данных книг
+- **Аутентификация пользователей** с Passport.js (регистрация/вход)
+- **MongoDB** для постоянного хранения данных книг и пользователей
 - **Mongoose ODM** для работы с базой данных
+- **Счётчик просмотров** с отдельным микросервисом
 - Полная контейнеризация через Docker Compose
 
 ## Содержание
@@ -15,6 +17,7 @@ RESTful API для управления коллекцией книг с воз�
 - [Установка и запуск](#установка-и-запуск)
   - [Локальный запуск](#локальный-запуск)
   - [Запуск через Docker](#запуск-через-docker)
+- [Аутентификация](#аутентификация)
 - [Веб-интерфейс](#веб-интерфейс)
 - [Счётчик просмотров](#счётчик-просмотров)
 - [Структура данных](#структура-данных)
@@ -22,7 +25,6 @@ RESTful API для управления коллекцией книг с воз�
 - [Примеры запросов](#примеры-запросов)
 - [Работа с файлами](#работа-с-файлами)
 - [База данных](#база-данных)
-- [Тестирование в Postman](#тестирование-в-postman)
 - [Структура проекта](#структура-проекта)
 - [Docker](#docker)
 - [Лицензия](#лицензия)
@@ -31,8 +33,10 @@ RESTful API для управления коллекцией книг с воз�
 
 - **Node.js** - среда выполнения JavaScript
 - **Express.js** - веб-фреймворк для Node.js
-- **MongoDB** - база данных для хранения книг
+- **MongoDB** - база данных для хранения книг и пользователей
 - **Mongoose** - ODM для работы с MongoDB
+- **Passport.js** - аутентификация пользователей
+- **Express Session** - управление сессиями
 - **EJS** - шаблонизатор для создания веб-интерфейса
 - **Multer** - middleware для обработки multipart/form-data (загрузка файлов)
 - **UUID** - генерация уникальных идентификаторов
@@ -75,6 +79,7 @@ cd book-api
 
 2. Установите зависимости:
 ```bash
+npm install express-ejs-layouts
 npm install
 cd counter-api && npm install && cd ..
 ```
@@ -124,11 +129,45 @@ docker-compose down -v
 docker-compose logs -f
 ```
 
-#### Просмотр логов конкретного сервиса
+## Аутентификация
+
+### Маршруты аутентификации
+
+| Метод | URL | Описание |
+|-------|-----|----------|
+| GET | `/api/user/login` | Страница входа/регистрации |
+| GET | `/api/user/me` | Профиль пользователя (требуется вход) |
+| POST | `/api/user/login` | Вход в систему |
+| POST | `/api/user/signup` | Регистрация нового пользователя |
+| GET | `/api/user/logout` | Выход из системы |
+| GET | `/api/user/check` | Проверка статуса аутентификации |
+
+### Регистрация пользователя
+
 ```bash
-docker-compose logs -f book-api
-docker-compose logs -f counter-api
-docker-compose logs -f mongo
+curl -X POST http://localhost:3000/api/user/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","username":"user","password":"123456","confirmPassword":"123456"}'
+```
+
+### Вход в систему
+
+```bash
+curl -X POST http://localhost:3000/api/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"123456"}'
+```
+
+### Проверка статуса
+
+```bash
+curl http://localhost:3000/api/user/check
+```
+
+### Выход
+
+```bash
+curl http://localhost:3000/api/user/logout
 ```
 
 ## Веб-интерфейс
@@ -137,23 +176,24 @@ docker-compose logs -f mongo
 
 ### Основные страницы
 
-| URL | Описание |
-|-----|----------|
-| `/` | Главная страница с информацией о приложении |
-| `/books` | Список всех книг с возможностью просмотра, редактирования и удаления |
-| `/books/create` | Форма для добавления новой книги с загрузкой файлов |
-| `/books/:id` | Страница просмотра подробной информации о книге **(+1 просмотр)** |
-| `/books/:id/edit` | Форма для редактирования книги |
+| URL | Описание | Доступ |
+|-----|----------|--------|
+| `/` | Главная страница | Все пользователи |
+| `/books` | Список всех книг | Все пользователи |
+| `/books/create` | Форма добавления книги | Только авторизованные |
+| `/books/:id` | Просмотр книги | Все пользователи |
+| `/books/:id/edit` | Редактирование книги | Только авторизованные |
+| `/api/user/login` | Вход/регистрация | Все пользователи |
+| `/api/user/me` | Профиль пользователя | Только авторизованные |
 
 ### Возможности веб-интерфейса
 
+- **Аутентификация** - регистрация и вход в систему
+- **Управление книгами** - создание, чтение, обновление, удаление
+- **Защищенные действия** - создание и редактирование доступны только авторизованным
 - **Просмотр списка книг** - таблица с нумерацией, названием, автором и действиями
-- **Добавление книги** - форма с предпросмотром загружаемых файлов и drag-and-drop
-- **Просмотр книги** - детальная информация с обложкой, описанием, **счётчиком просмотров** и метаданными файла
-- **Редактирование** - изменение информации и замена файлов
-- **Удаление** - удаление книги с подтверждением
-- **Скачивание** - скачивание файла книги с корректным отображением русских имён
-- **Копирование ID** - возможность скопировать ID книги в буфер обмена
+- **Просмотр книги** - детальная информация с обложкой, описанием, счётчиком просмотров
+- **Скачивание файлов** - скачивание файлов книг доступно всем пользователям
 
 ## Счётчик просмотров
 
@@ -188,55 +228,33 @@ docker-compose logs -f mongo
 | `GET` | `/counter/:bookId` | Получить текущее значение счётчика |
 | `POST` | `/counter/:bookId/incr` | Увеличить счётчик на 1 |
 
-**Примеры запросов:**
-
-```bash
-# Получить счётчик
-curl http://localhost:3001/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef
-
-# Увеличить счётчик
-curl -X POST http://localhost:3001/counter/9df5c501-429c-4549-8cf4-3a2fb0a1a6ef/incr
-```
-
-### Хранение данных
-
-Счётчики хранятся в файловой системе в папке `counter-api/data/`:
-```
-counter-api/data/
-├── 9df5c501-429c-4549-8cf4-3a2fb0a1a6ef.json  → {"count": 42}
-├── другой-id.json                               → {"count": 7}
-└── ...
-```
-
-**Преимущества:**
-- Данные переживают рестарт контейнера
-- Данные переживают удаление контейнера (благодаря Docker volumes)
-- Простота резервного копирования
-
-### Прокси-маршруты (доступны через основной сервер)
-
-Для удобства, основные маршруты счётчика также доступны через основной сервер:
-
-| Метод | URL | Описание |
-|:---|:---|:---|
-| `GET` | `/counter/:bookId` | Получить значение счётчика |
-| `POST` | `/counter/:bookId/incr` | Увеличить счётчик |
-
 ## Структура данных
+
+### Пользователь (MongoDB коллекция `users`)
+```javascript
+{
+  id: "string",           // Уникальный идентификатор
+  email: "string",        // Email пользователя (уникальный)
+  username: "string",     // Имя пользователя (уникальное)
+  password: "string",     // Хешированный пароль
+  createdAt: "date",      // Дата регистрации
+  lastLogin: "date"       // Дата последнего входа
+}
+```
 
 ### Книга (MongoDB коллекция `books`)
 ```javascript
 {
-  id: "string",           // Уникальный идентификатор (генерируется автоматически)
-  title: "string",        // Название книги (обязательное поле)
+  id: "string",           // Уникальный идентификатор
+  title: "string",        // Название книги
   description: "string",  // Описание книги
   authors: "string",      // Автор(ы) книги
   favorite: "string",     // Отметка "избранное"
   fileCover: "string",    // Имя файла обложки
   fileName: "string",     // Оригинальное имя файла книги
   fileBook: "string",     // Имя сохранённого файла книги
-  createdAt: "date",      // Дата создания (автоматически)
-  updatedAt: "date"       // Дата обновления (автоматически)
+  createdAt: "date",      // Дата создания
+  updatedAt: "date"       // Дата обновления
 }
 ```
 
@@ -250,103 +268,77 @@ counter-api/data/
 
 ## Эндпоинты API
 
+### Аутентификация
+
+| Метод | URL | Действие | Ответ |
+|-------|-----|----------|--------|
+| POST | `/api/user/signup` | Регистрация | 201 и данные пользователя |
+| POST | `/api/user/login` | Вход | 200 и данные пользователя |
+| GET | `/api/user/logout` | Выход | 200 |
+| GET | `/api/user/check` | Проверка статуса | 200 с `authenticated` |
+| GET | `/api/user/me` | Профиль | HTML страница |
+
 ### Основное приложение (Book API)
 
-| Метод | URL | Действие | Ответ |
-|--------|-----|----------|--------|
-| POST | `/api/user/login` | Авторизация пользователя | `201` и объект пользователя |
-| GET | `/api/books` | Получить все книги | Массив всех книг из MongoDB |
-| GET | `/api/books/:id` | Получить книгу по ID **(+1 просмотр)** | Объект книги с полем `views` или `404` |
-| POST | `/api/books` | Создать книгу с файлами | Созданная книга с ID |
-| PUT | `/api/books/:id` | Обновить книгу с файлами | Обновлённая книга или `404` |
-| DELETE | `/api/books/:id` | Удалить книгу | `'ok'` или `404` |
-| GET | `/api/books/:id/download` | Скачать файл книги | Файл для скачивания |
-
-### Микросервис счётчика (Counter API)
-
-| Метод | URL | Действие | Ответ |
-|--------|-----|----------|--------|
-| GET | `/counter/:bookId` | Получить значение счётчика | `{"bookId": "...", "count": number}` |
-| POST | `/counter/:bookId/incr` | Увеличить счётчик | `{"bookId": "...", "count": number}` |
-
-### Прокси-маршруты (через основной сервер)
-
-| Метод | URL | Действие | Ответ |
-|--------|-----|----------|--------|
-| GET | `/counter/:bookId` | Получить значение счётчика | `{"bookId": "...", "count": number}` |
-| POST | `/counter/:bookId/incr` | Увеличить счётчик | `{"bookId": "...", "count": number}` |
+| Метод | URL | Действие | Доступ |
+|-------|-----|----------|--------|
+| GET | `/api/books` | Получить все книги | Все |
+| GET | `/api/books/:id` | Получить книгу по ID (+1 просмотр) | Все |
+| POST | `/api/books` | Создать книгу | Только авторизованные |
+| PUT | `/api/books/:id` | Обновить книгу | Только авторизованные |
+| DELETE | `/api/books/:id` | Удалить книгу | Только авторизованные |
+| GET | `/api/books/:id/download` | Скачать файл | Все |
 
 ## Примеры запросов
 
-### 1. Получение всех книг
-**GET** `/api/books`
-
-**Ответ** (статус 200):
-```json
-[
-    {
-        "_id": "67f9a123456789abcdef0123",
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "title": "Война и мир",
-        "description": "Классический роман Льва Толстого",
-        "authors": "Лев Толстой",
-        "favorite": "true",
-        "fileCover": "cover.jpg",
-        "fileName": "война_и_мир.pdf",
-        "fileBook": "book.pdf",
-        "createdAt": "2024-01-15T10:30:00.000Z",
-        "updatedAt": "2024-01-15T10:30:00.000Z"
-    }
-]
-```
-
-### 2. Получение книги по ID (увеличивает счётчик)
-**GET** `/api/books/550e8400-e29b-41d4-a716-446655440000`
-
-**Ответ** (статус 200):
-```json
-{
-    "_id": "67f9a123456789abcdef0123",
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "Война и мир",
-    "description": "Классический роман Льва Толстого",
-    "authors": "Лев Толстой",
-    "favorite": "true",
-    "fileCover": "cover.jpg",
-    "fileName": "война_и_мир.pdf",
-    "fileBook": "book.pdf",
-    "createdAt": "2024-01-15T10:30:00.000Z",
-    "updatedAt": "2024-01-15T10:30:00.000Z",
-    "views": 43
-}
-```
-
-### 3. Создание новой книги
-**POST** `/api/books`
-
-**Тип запроса**: `multipart/form-data`
-
-| Поле | Тип | Значение |
-|------|-----|----------|
-| title | Text | Война и мир |
-| description | Text | Классический роман Льва Толстого |
-| authors | Text | Лев Толстой |
-| favorite | Text | true |
-| fileCover | File | обложка.jpg |
-| fileBook | File | война_и_мир.pdf |
-
-### 4. Работа со счётчиком
+### 1. Регистрация пользователя
 
 ```bash
-# Получить значение счётчика
-curl http://localhost:3001/counter/550e8400-e29b-41d4-a716-446655440000
+curl -X POST http://localhost:3000/api/user/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","username":"user","password":"123456","confirmPassword":"123456"}'
+```
 
-# Увеличить счётчик
-curl -X POST http://localhost:3001/counter/550e8400-e29b-41d4-a716-446655440000/incr
+### 2. Вход в систему
 
-# Через прокси основного сервера
-curl http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000
-curl -X POST http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000/incr
+```bash
+curl -X POST http://localhost:3000/api/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"123456"}'
+```
+
+### 3. Получение всех книг
+
+```bash
+curl http://localhost:3000/api/books
+```
+
+### 4. Создание новой книги (требуется авторизация)
+
+```bash
+curl -X POST http://localhost:3000/api/books \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Новая книга","authors":"Автор","description":"Описание"}'
+```
+
+### 5. Получение книги по ID
+
+```bash
+curl http://localhost:3000/api/books/550e8400-e29b-41d4-a716-446655440000
+```
+
+### 6. Обновление книги
+
+```bash
+curl -X PUT http://localhost:3000/api/books/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Обновленное название"}'
+```
+
+### 7. Удаление книги
+
+```bash
+curl -X DELETE http://localhost:3000/api/books/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ## Работа с файлами
@@ -367,30 +359,15 @@ curl -X POST http://localhost:3000/counter/550e8400-e29b-41d4-a716-446655440000/
 
 ### MongoDB
 
-Проект использует MongoDB для хранения данных о книгах через Mongoose ODM.
+Проект использует MongoDB для хранения данных о книгах и пользователях через Mongoose ODM.
 
 **Структура базы данных:**
 - **Database:** `library_db`
-- **Collection:** `books`
+- **Collections:** `books`, `users`
 
 **Подключение:**
 - Локально: `mongodb://localhost:27017/library_db`
 - Docker: `mongodb://admin:secretpassword@mongo:27017/library_db?authSource=admin`
-
-### Mongoose Схема
-
-```javascript
-const bookSchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
-    title: { type: String, required: true },
-    description: { type: String, default: '' },
-    authors: { type: String, default: '' },
-    favorite: { type: String, default: '' },
-    fileCover: { type: String, default: '' },
-    fileName: { type: String, default: '' },
-    fileBook: { type: String, default: '' }
-}, { timestamps: true });
-```
 
 ### MongoDB Admin (mongo-express)
 
@@ -405,15 +382,20 @@ const bookSchema = new mongoose.Schema({
 book-api/
 │
 ├── config/
-│   └── db.js               # Подключение к MongoDB
+│   ├── db.js               # Подключение к MongoDB
+│   └── passport.js         # Настройка Passport.js
 │
 ├── models/
-│   └── Book.js             # Mongoose схема книги
+│   ├── Book.js             # Mongoose схема книги
+│   └── User.js             # Mongoose схема пользователя
 │
 ├── views/                  # Шаблоны EJS
-│   ├── layout.ejs
+│   ├── layout.ejs          # Основной layout
 │   ├── index.ejs
 │   ├── error.ejs
+│   ├── auth/
+│   │   ├── login.ejs       # Страница входа
+│   │   └── profile.ejs     # Профиль пользователя
 │   └── books/
 │       ├── index.ejs
 │       ├── view.ejs
@@ -421,8 +403,8 @@ book-api/
 │       └── edit.ejs
 │
 ├── routes/
-│   ├── auth.js
-│   ├── books.js            # API роуты для книг (MongoDB)
+│   ├── auth.js             # Маршруты аутентификации
+│   ├── books.js            # API роуты для книг
 │   └── web.js              # Веб-роуты
 │
 ├── middleware/
@@ -457,26 +439,6 @@ book-api/
 | `book-api` | 3000 | Основное приложение |
 | `counter-api` | 3001 | Микросервис счётчика |
 
-### Образы
-
-```bash
-# Основной образ приложения
-docker pull jenycher/book-api:v1.0.0
-
-# Микросервис счётчика
-docker pull jenycher/counter-api:v2.0.0
-```
-
-### Сборка образов
-
-```bash
-# Сборка основного приложения
-docker build -t jenycher/book-api:v1.0.0 .
-
-# Сборка микросервиса счётчика
-cd counter-api && docker build -t jenycher/counter-api:v2.0.0 . && cd ..
-```
-
 ### Переменные окружения
 
 | Переменная | Значение по умолчанию | Описание |
@@ -484,6 +446,7 @@ cd counter-api && docker build -t jenycher/counter-api:v2.0.0 . && cd ..
 | PORT | 3000 | Порт для запуска основного сервера |
 | COUNTER_SERVICE_URL | http://counter-api:3001 | URL микросервиса счётчика |
 | MONGODB_URI | mongodb://admin:secretpassword@mongo:27017/library_db?authSource=admin | Подключение к MongoDB |
+| SESSION_SECRET | your-secret-key | Секретный ключ для сессий |
 
 ### Docker volumes
 
@@ -494,4 +457,3 @@ cd counter-api && docker build -t jenycher/counter-api:v2.0.0 . && cd ..
 ## Лицензия
 
 ISC
-

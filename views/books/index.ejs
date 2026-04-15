@@ -4,15 +4,19 @@ title = 'Список книг';
 
 <div class="books-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <h2>Все книги (<%= books.length %>)</h2>
-    <div>
-        <a href="/" class="btn">🏠 Главная</a>
+    <% if (isAuthenticated) { %>
         <a href="/books/create" class="btn btn-success">+ Добавить книгу</a>
-    </div>
+    <% } %>
 </div>
 
 <% if (books.length === 0) { %>
     <div class="alert alert-info">
-        Пока нет ни одной книги. <a href="/books/create">Добавьте первую книгу!</a>
+        Пока нет ни одной книги. 
+        <% if (isAuthenticated) { %>
+            <a href="/books/create">Добавьте первую книгу!</a>
+        <% } else { %>
+            <a href="/api/user/login">Войдите</a> чтобы добавить книгу.
+        <% } %>
     </div>
 <% } else { %>
     <div class="books-table-container">
@@ -37,21 +41,15 @@ title = 'Список книг';
                         </td>
                         <td class="book-authors-cell"><%= book.authors || '—' %></td>
                         <td class="book-actions-cell">
-                            <a href="/books/<%= book.id %>" class="action-btn view-btn" title="Просмотр">
-                                👁️
-                            </a>
-                            <a href="/books/<%= book.id %>/edit" class="action-btn edit-btn" title="Редактировать">
-                                ✏️
-                            </a>
-                            <form action="/books/<%= book.id %>/delete" method="POST" style="display: inline;">
-                                <button type="submit" class="action-btn delete-btn" title="Удалить" onclick="return confirm('Вы уверены, что хотите удалить книгу «<%= book.title %>»?')">
-                                    🗑️
-                                </button>
-                            </form>
+                            <a href="/books/<%= book.id %>" class="action-btn view-btn" title="Просмотр">👁️</a>
+                            <% if (isAuthenticated) { %>
+                                <a href="/books/<%= book.id %>/edit" class="action-btn edit-btn" title="Редактировать">✏️</a>
+                                <form action="/books/<%= book.id %>/delete" method="POST" style="display: inline;">
+                                    <button type="submit" class="action-btn delete-btn" title="Удалить" onclick="return confirm('Вы уверены?')">🗑️</button>
+                                </form>
+                            <% } %>
                             <% if (book.fileBook) { %>
-                                <a href="/books/<%= book.id %>/download" class="action-btn download-btn" title="Скачать">
-                                    📥
-                                </a>
+                                <a href="/books/<%= book.id %>/download" class="action-btn download-btn" title="Скачать">📥</a>
                             <% } %>
                         </td>
                     </tr>
@@ -94,7 +92,6 @@ title = 'Список книг';
     
     .books-table tbody tr:hover {
         background-color: #f7fafc;
-        transition: background-color 0.2s;
     }
     
     .book-number {
@@ -102,7 +99,6 @@ title = 'Список книг';
         text-align: center;
         font-weight: 600;
         color: #4a5568;
-        font-size: 1rem;
     }
     
     .book-title-cell {
@@ -110,29 +106,9 @@ title = 'Список книг';
         color: #2d3748;
     }
     
-    .book-title-cell strong {
-        font-size: 1rem;
-    }
-    
     .favorite-star {
         margin-left: 0.5rem;
         font-size: 0.9rem;
-        display: inline-block;
-        animation: starPulse 0.3s ease;
-    }
-    
-    @keyframes starPulse {
-        0% { transform: scale(0); }
-        100% { transform: scale(1); }
-    }
-    
-    .book-authors-cell {
-        color: #4a5568;
-    }
-    
-    .book-actions-cell {
-        white-space: nowrap;
-        text-align: center;
     }
     
     .action-btn {
@@ -146,47 +122,28 @@ title = 'Список книг';
         cursor: pointer;
         border: none;
         background: none;
-        font-family: monospace;
     }
     
     .action-btn:hover {
         transform: scale(1.1);
     }
     
-    .view-btn {
-        color: #4299e1;
+    .view-btn { color: #4299e1; }
+    .edit-btn { color: #48bb78; }
+    .delete-btn { color: #f56565; }
+    .download-btn { color: #9f7aea; }
+    
+    .btn {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
     }
     
-    .view-btn:hover {
-        background-color: #ebf8ff;
-        color: #2b6cb0;
-    }
-    
-    .edit-btn {
-        color: #48bb78;
-    }
-    
-    .edit-btn:hover {
-        background-color: #f0fff4;
-        color: #2f855a;
-    }
-    
-    .delete-btn {
-        color: #f56565;
-    }
-    
-    .delete-btn:hover {
-        background-color: #fff5f5;
-        color: #c53030;
-    }
-    
-    .download-btn {
-        color: #9f7aea;
-    }
-    
-    .download-btn:hover {
-        background-color: #faf5ff;
-        color: #6b46c1;
+    .btn-success {
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
     }
     
     @media (max-width: 768px) {
@@ -194,50 +151,9 @@ title = 'Список книг';
         .books-table td {
             padding: 0.75rem 0.5rem;
         }
-        
-        .book-number {
-            width: 40px;
-            font-size: 0.85rem;
-        }
-        
         .action-btn {
             padding: 0.3rem 0.4rem;
             font-size: 1rem;
-        }
-        
-        .book-title-cell {
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .book-authors-cell {
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .book-number {
-            width: 35px;
-            font-size: 0.75rem;
-        }
-        
-        .action-btn {
-            padding: 0.25rem 0.3rem;
-            font-size: 0.9rem;
-            margin: 0 0.1rem;
-        }
-        
-        .books-table th {
-            font-size: 0.85rem;
-        }
-        
-        .books-table td {
-            font-size: 0.85rem;
         }
     }
 </style>

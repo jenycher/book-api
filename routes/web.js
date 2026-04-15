@@ -29,6 +29,8 @@ router.get('/', (req, res) => {
     });
 });
 
+
+
 // Список всех книг
 router.get('/books', async (req, res) => {
     try {
@@ -47,8 +49,16 @@ router.get('/books', async (req, res) => {
     }
 });
 
-// Страница создания книги
-router.get('/books/create', (req, res) => {
+// Middleware для проверки аутентификации в веб-маршрутах
+const ensureWebAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.redirect('/api/user/login?message=Пожалуйста, войдите в систему');
+};
+
+// Страница создания книги (только для авторизованных)
+router.get('/books/create', ensureWebAuthenticated, (req, res) => {
     res.render('books/create', { 
         title: 'Добавить книгу',
         formData: null,
@@ -57,7 +67,7 @@ router.get('/books/create', (req, res) => {
 });
 
 // Создание книги (POST)
-router.post('/books', upload.fields([
+router.post('/books', ensureWebAuthenticated, upload.fields([
     { name: 'fileCover', maxCount: 1 },
     { name: 'fileBook', maxCount: 1 }
 ]), async (req, res) => {
@@ -229,7 +239,7 @@ router.get('/books/:id', async (req, res) => {
 });
 
 // Страница редактирования книги
-router.get('/books/:id/edit', async (req, res) => {
+router.get('/books/:id/edit', ensureWebAuthenticated, async (req, res) => {
     const { id } = req.params;
     
     try {
@@ -363,7 +373,7 @@ router.get('/books/:id/edit', async (req, res) => {
 });
 
 // Обновление книги (POST)
-router.post('/books/:id/update', upload.fields([
+router.post('/books/:id/update', ensureWebAuthenticated, upload.fields([
     { name: 'fileCover', maxCount: 1 },
     { name: 'fileBook', maxCount: 1 }
 ]), async (req, res) => {
@@ -426,7 +436,7 @@ router.post('/books/:id/update', upload.fields([
 });
 
 // Удаление книги
-router.post('/books/:id/delete', async (req, res) => {
+router.post('/books/:id/delete', ensureWebAuthenticated, async (req, res) => {
     const { id } = req.params;
     
     try {

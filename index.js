@@ -3,10 +3,25 @@ const path = require('path');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
+const session = require('express-session');
+const passport = require('./config/passport');
+const expressLayouts = require('express-ejs-layouts'); 
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const COUNTER_SERVICE_URL = process.env.COUNTER_SERVICE_URL || 'http://localhost:3001';
+
+app.use(session({
+    secret: 'your-secret-key-change-this-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+        httpOnly: true,
+        secure: false, // в production установить true (для HTTPS)
+    }
+}));
 
 // ============== ФУНКЦИЯ ДЛЯ ВЫЗОВА МИКРОСЕРВИСА СЧЁТЧИКА ==============
 async function callCounter(bookId, method = 'GET') {
@@ -46,10 +61,28 @@ connectDB();
 // ============== НАСТРОЙКА VIEWS И MIDDLEWARE ==============
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.use(expressLayouts);
+app.set('layout', 'layout'); 
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/public', express.static(path.join(__dirname, 'public')));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use((req, res, next) => {
+    res.locals.user = req.user || null;
+    res.locals.isAuthenticated = req.isAuthenticated() || false;
+    next();
+});
+
+const ensureApiAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.status(401).json({ message: 'Не авторизован. Пожалуйста, войдите в систему.' });
+};
 
 // ============== ПОДКЛЮЧЕНИЕ РОУТЕРОВ ==============
 const authRoutes = require('./routes/auth');
