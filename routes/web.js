@@ -221,7 +221,9 @@ router.get('/books/:id', async (req, res) => {
                 },
                 fileInfo: fileInfo,
                 addedDate: addedDate,
-                message: null
+                message: null,
+                user: req.user || null,
+                isAuthenticated: req.isAuthenticated()
             });
         } else {
             res.render('error', { 

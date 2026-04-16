@@ -145,7 +145,118 @@ title = book.title;
             </div>
         </div>
     </div>
-</div>
+    <!-- Комментарии -->
+    <%- include('comments', { user: user, isAuthenticated: isAuthenticated }) %>
+ </div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    const bookId = '<%= book.id %>';
+    const currentUser = {
+        id: '<%= user ? user.id : "" %>',
+        username: '<%= user ? user.username : "" %>'
+    };
+    const isAuthenticated = <%= isAuthenticated %>;
+    
+    let commentsContainer = document.getElementById('comments-container');
+    
+    // Присоединение к комнате книги
+    socket.emit('join-book-room', bookId);
+    
+    // Загрузка существующих комментариев
+    socket.on('load-comments', (comments) => {
+        renderComments(comments);
+    });
+    
+    // Новый комментарий
+    socket.on('comment-added', (comment) => {
+        addCommentToDOM(comment);
+        // Прокрутка к новому комментарию
+        const commentsContainer = document.getElementById('comments-container');
+        commentsContainer.scrollTop = commentsContainer.scrollHeight;
+    });
+    
+    // Отправка комментария
+    const sendButton = document.getElementById('send-comment');
+    if (sendButton) {
+        sendButton.addEventListener('click', () => {
+            const textarea = document.getElementById('comment-text');
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                alert('Введите текст комментария');
+                return;
+            }
+            
+            socket.emit('new-comment', {
+                bookId: bookId,
+                comment: text,
+                user: currentUser
+            });
+            
+            textarea.value = '';
+            textarea.focus();
+        });
+    }
+    
+    // Функция рендеринга всех комментариев
+    function renderComments(comments) {
+        if (!commentsContainer) return;
+        
+        if (comments.length === 0) {
+            commentsContainer.innerHTML = '<div class="no-comments">💬 Пока нет комментариев. Будьте первым!</div>';
+            return;
+        }
+        
+        commentsContainer.innerHTML = '';
+        comments.forEach(comment => {
+            addCommentToDOM(comment);
+        });
+        
+        // Прокрутка вниз
+        commentsContainer.scrollTop = commentsContainer.scrollHeight;
+    }
+    
+    // Функция добавления одного комментария в DOM
+    function addCommentToDOM(comment) {
+        if (!commentsContainer) return;
+        
+        // Удаляем сообщение "Нет комментариев" если оно есть
+        if (commentsContainer.querySelector('.no-comments')) {
+            commentsContainer.innerHTML = '';
+        }
+        
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment';
+        commentDiv.id = `comment-${comment.id}`;
+        
+        commentDiv.innerHTML = `
+            <div class="comment-avatar">${comment.userAvatar}</div>
+            <div class="comment-content">
+                <div class="comment-header">
+                    <span class="comment-author">${escapeHtml(comment.username)}</span>
+                    <span class="comment-date">${comment.createdAtFormatted}</span>
+                </div>
+                <div class="comment-text">${escapeHtml(comment.text)}</div>
+            </div>
+        `;
+        
+        commentsContainer.appendChild(commentDiv);
+    }
+    
+    // Функция экранирования HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Покидаем комнату при закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        socket.emit('leave-book-room', bookId);
+    });
+</script> 
 
 <script>
 function copyToClipboard(text) {

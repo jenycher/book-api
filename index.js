@@ -6,22 +6,117 @@ const connectDB = require('./config/db');
 const session = require('express-session');
 const passport = require('./config/passport');
 const expressLayouts = require('express-ejs-layouts'); 
-
+const http = require('http');  
+const socketIo = require('socket.io');  
+const Comment = require('./models/Comment');
 
 const app = express();
+const server = http.createServer(app);  
+const io = socketIo(server);  
 const PORT = process.env.PORT || 3000;
 const COUNTER_SERVICE_URL = process.env.COUNTER_SERVICE_URL || 'http://localhost:3001';
 
-app.use(session({
+// ============== НАСТРОЙКА SESSION ДЛЯ SOCKET.IO ==============
+const sessionMiddleware = session({
     secret: 'your-secret-key-change-this-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        secure: false, // в production установить true (для HTTPS)
+        secure: false,
     }
-}));
+});
+
+// Применяем session middleware к express
+app.use(sessionMiddleware);
+
+// Применяем session middleware к socket.io
+io.use((socket, next) => {
+    sessionMiddleware(socket.request, {}, next);
+});
+
+// ============== НАСТРОЙКА SOCKET.IO ==============
+io.on('connection', (socket) => {
+    console.log('🔌 Новое подключение:', socket.id);
+    
+    // Получаем пользователя из сессии
+    const session = socket.request.session;
+    const currentUser = session.passport?.user ? { id: session.passport.user } : null;
+    
+    // Присоединение к комнате книги и загрузка комментариев из БД
+    socket.on('join-book-room', async (bookId) => {
+        socket.join(`book-${bookId}`);
+        console.log(`📚 Socket ${socket.id} присоединился к комнате book-${bookId}`);
+        
+        try {
+            // Загружаем комментарии из MongoDB
+            const comments = await Comment.find({ bookId: bookId })
+                .sort({ createdAt: 1 })
+                .limit(100);
+            
+            const formattedComments = comments.map(comment => ({
+                id: comment.id,
+                username: comment.username,
+                userAvatar: comment.userAvatar,
+                text: comment.text,
+                createdAtFormatted: comment.createdAt.toLocaleString('ru-RU')
+            }));
+            
+            socket.emit('load-comments', formattedComments);
+        } catch (error) {
+            console.error('Ошибка загрузки комментариев:', error);
+            socket.emit('load-comments', []);
+        }
+    });
+    
+    // Покидание комнаты
+    socket.on('leave-book-room', (bookId) => {
+        socket.leave(`book-${bookId}`);
+        console.log(`📚 Socket ${socket.id} покинул комнату book-${bookId}`);
+    });
+    
+    // Новый комментарий
+    socket.on('new-comment', async (data) => {
+        const { bookId, comment, user } = data;
+        
+        try {
+            // Сохраняем в БД
+            const commentDoc = new Comment({
+                id: Date.now().toString(),
+                bookId: bookId,
+                userId: user?.id || 'anonymous',
+                username: user?.username || 'Гость',
+                userAvatar: user?.username ? user.username.charAt(0).toUpperCase() : '?',
+                text: comment,
+                createdAt: new Date()
+            });
+            await commentDoc.save();
+            
+            const commentObj = {
+                id: commentDoc.id,
+                bookId: commentDoc.bookId,
+                userId: commentDoc.userId,
+                username: commentDoc.username,
+                userAvatar: commentDoc.userAvatar,
+                text: commentDoc.text,
+                createdAt: commentDoc.createdAt,
+                createdAtFormatted: commentDoc.createdAt.toLocaleString('ru-RU')
+            };
+            
+            // Отправляем комментарий всем в комнате
+            io.to(`book-${bookId}`).emit('comment-added', commentObj);
+            console.log(`💬 Новый комментарий к книге ${bookId} от ${commentObj.username}`);
+        } catch (error) {
+            console.error('Ошибка сохранения комментария:', error);
+        }
+    });
+    
+    // Отключение
+    socket.on('disconnect', () => {
+        console.log('🔌 Отключение:', socket.id);
+    });
+});
 
 // ============== ФУНКЦИЯ ДЛЯ ВЫЗОВА МИКРОСЕРВИСА СЧЁТЧИКА ==============
 async function callCounter(bookId, method = 'GET') {
@@ -132,7 +227,7 @@ app.use((req, res) => {
 });
 
 // ============== ЗАПУСК СЕРВЕРА ==============
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
 ║                    📚 БИБЛИОТЕКА ЗАПУЩЕНА 📚                     ║
@@ -140,6 +235,7 @@ app.listen(PORT, () => {
 
 📡 Порт: ${PORT}
 🔄 Counter service: ${COUNTER_SERVICE_URL}
+💬 WebSocket: активен
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

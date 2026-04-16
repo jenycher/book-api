@@ -1,0 +1,206 @@
+<div class="comments-section">
+    <h3>💬 Обсуждение книги</h3>
+    
+    <div id="comments-container" class="comments-container">
+        <!-- Комментарии будут загружены через JS -->
+        <div class="comments-loading">Загрузка комментариев...</div>
+    </div>
+    
+    <% if (isAuthenticated) { %>
+        <div class="comment-form">
+            <div class="comment-input-wrapper">
+                <div class="comment-avatar">
+                    <%= user && user.username ? user.username.charAt(0).toUpperCase() : '?' %>
+                </div>
+                <textarea 
+                    id="comment-text" 
+                    class="comment-textarea" 
+                    placeholder="Напишите комментарий..."
+                    rows="3"
+                ></textarea>
+            </div>
+            <button id="send-comment" class="btn-send">Отправить</button>
+        </div>
+    <% } else { %>
+        <div class="login-to-comment">
+            <p>🔐 <a href="/api/user/login">Войдите</a> чтобы оставить комментарий</p>
+        </div>
+    <% } %>
+</div>
+
+<style>
+    .comments-section {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e2e8f0;
+    }
+    
+    .comments-section h3 {
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        font-size: 1.3rem;
+    }
+    
+    .comments-container {
+        max-height: 400px;
+        overflow-y: auto;
+        margin-bottom: 1.5rem;
+    }
+    
+    .comment {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f7fafc;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        animation: commentFadeIn 0.3s ease-out;
+    }
+    
+    @keyframes commentFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .comment-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    
+    .comment-content {
+        flex: 1;
+    }
+    
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 0.5rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .comment-author {
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .comment-date {
+        font-size: 0.75rem;
+        color: #a0aec0;
+    }
+    
+    .comment-text {
+        color: #4a5568;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+    
+    .no-comments {
+        text-align: center;
+        padding: 2rem;
+        color: #a0aec0;
+        background: #f7fafc;
+        border-radius: 12px;
+    }
+    
+    .comments-loading {
+        text-align: center;
+        padding: 2rem;
+        color: #a0aec0;
+    }
+    
+    .comment-form {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .comment-input-wrapper {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .comment-textarea {
+        flex: 1;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        resize: vertical;
+        transition: border-color 0.2s;
+    }
+    
+    .comment-textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .btn-send {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .btn-send:hover {
+        transform: translateY(-2px);
+    }
+    
+    .login-to-comment {
+        text-align: center;
+        padding: 1.5rem;
+        background: #f7fafc;
+        border-radius: 12px;
+        color: #4a5568;
+    }
+    
+    .login-to-comment a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .login-to-comment a:hover {
+        text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+        .comment-header {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .comment-input-wrapper {
+            flex-direction: column;
+        }
+        
+        .comment-avatar {
+            width: 32px;
+            height: 32px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
