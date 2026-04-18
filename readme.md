@@ -5,7 +5,7 @@ RESTful API для управления коллекцией книг с воз�
 создания, чтения, обновления и удаления записей, а также скачивания файлов книг.
 
 **✨ Новое:** 
-- **Комментарии в реальном времени** с Socket.IO (WebSocket)
+- **TypeScript подготовка** - интерфейсы и абстрактные классы для будущей миграции
 
 ## Содержание
 - [Технологии](#технологии)
@@ -22,6 +22,7 @@ RESTful API для управления коллекцией книг с воз�
 - [Примеры запросов](#примеры-запросов)
 - [Работа с файлами](#работа-с-файлами)
 - [База данных](#база-данных)
+- [TypeScript подготовка](#typescript-подготовка)
 - [Структура проекта](#структура-проекта)
 - [Docker](#docker)
 - [Лицензия](#лицензия)
@@ -38,6 +39,7 @@ RESTful API для управления коллекцией книг с воз�
 - **EJS** - шаблонизатор для создания веб-интерфейса
 - **Multer** - middleware для обработки multipart/form-data (загрузка файлов)
 - **UUID** - генерация уникальных идентификаторов
+- **TypeScript** - типизация и подготовка к миграции
 - **Docker** - контейнеризация приложения
 - **Docker Compose** - оркестрация микросервисов
 
@@ -336,10 +338,129 @@ curl -X POST http://localhost:3000/api/user/login \
 | DELETE | `/api/books/:id` | Удалить книгу | Только авторизованные |
 | GET | `/api/books/:id/download` | Скачать файл | Все |
 
+## TypeScript подготовка
+
+В рамках подготовки к миграции проекта на TypeScript созданы интерфейсы и абстрактные классы.
+
+### Интерфейсы
+
+#### IBook - интерфейс книги
+```typescript
+interface IBook {
+    id: string;
+    title: string;
+    description: string | null;
+    authors: string | null;
+    favorite: boolean;
+    fileCover: string | null;
+    fileName: string | null;
+    fileBook: string | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+```
+
+#### IUser - интерфейс пользователя
+```typescript
+interface IUser {
+    id: string;
+    email: string;
+    username: string;
+    password: string;
+    createdAt: Date;
+    lastLogin: Date | null;
+}
+```
+
+#### IComment - интерфейс комментария
+```typescript
+interface IComment {
+    id: string;
+    bookId: string;
+    userId: string;
+    username: string;
+    userAvatar: string;
+    text: string;
+    createdAt: Date;
+}
+```
+
+### Абстрактные классы
+
+#### BooksRepository
+Абстрактный класс, определяющий контракт для работы с хранилищем книг:
+
+```typescript
+abstract class BooksRepository {
+    abstract createBook(book: ICreateBook): Promise<IBook>;
+    abstract getBook(id: string): Promise<IBook | null>;
+    abstract getBooks(): Promise<IBook[]>;
+    abstract updateBook(id: string, updatedBook: IUpdateBook): Promise<IBook | null>;
+    abstract deleteBook(id: string): Promise<boolean>;
+    abstract findBooksByTitle(title: string): Promise<IBook[]>;
+    abstract findBooksByAuthor(author: string): Promise<IBook[]>;
+    abstract getFavoriteBooks(): Promise<IBook[]>;
+    abstract countBooks(): Promise<number>;
+}
+```
+
+### Настройки TypeScript
+
+В файле `tsconfig.json` настроены следующие опции:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": false,
+    "target": "ES2022",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  }
+}
+```
+
+### Структура TypeScript файлов
+
+```
+src/
+├── interfaces/
+│   ├── IBook.ts          # Интерфейс книги и типы
+│   ├── IUser.ts          # Интерфейс пользователя
+│   └── IComment.ts       # Интерфейс комментария
+├── repositories/
+│   ├── BooksRepository.ts    # Абстрактный класс книг
+│   ├── UserRepository.ts     # Абстрактный класс пользователей
+│   └── CommentRepository.ts  # Абстрактный класс комментариев
+└── index.ts              # Точка входа для экспорта
+```
+
+### Команды для работы с TypeScript
+
+```bash
+# Сборка TypeScript
+npm run build
+
+# Сборка в режиме наблюдения
+npm run build:watch
+
+# Проверка типов без сборки
+npm run type-check
+
+# Очистка собранных файлов
+npm run clean
+```
+
 ## Структура проекта
 
 ```
 book-api/
+│
+├── src/                      # TypeScript исходники
+│   ├── interfaces/           # Интерфейсы сущностей
+│   ├── repositories/         # Абстрактные репозитории
+│   └── index.ts              # Точка входа TS
 │
 ├── config/
 │   ├── db.js               # Подключение к MongoDB
@@ -383,6 +504,8 @@ book-api/
 │   ├── Dockerfile
 │   └── package.json
 │
+├── dist/                   # Скомпилированные JS файлы
+├── tsconfig.json           # Конфигурация TypeScript
 ├── index.js
 ├── Dockerfile
 ├── docker-compose.yml
