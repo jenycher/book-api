@@ -338,9 +338,151 @@ curl -X POST http://localhost:3000/api/user/login \
 | DELETE | `/api/books/:id` | Удалить книгу | Только авторизованные |
 | GET | `/api/books/:id/download` | Скачать файл | Все |
 
+Отлично! Давайте обновим README.md, добавив информацию о IoC контейнере, тестировании репозитория и новых скриптах.
+
+## Обновленный раздел "TypeScript подготовка" с добавлением IoC и тестирования:
+
+```markdown
 ## TypeScript подготовка
 
-В рамках подготовки к миграции проекта на TypeScript созданы интерфейсы и абстрактные классы.
+В рамках подготовки к миграции проекта на TypeScript созданы интерфейсы, абстрактные классы и IoC контейнер для управления зависимостями.
+
+### InversifyJS - внедрение зависимостей
+
+Проект использует **InversifyJS** для реализации IoC (Inversion of Control) контейнера:
+
+```typescript
+// src/container.ts
+import 'reflect-metadata';
+import { Container } from 'inversify';
+import { BooksRepository } from './repositories/BooksRepository';
+import { MongoBooksRepository } from './repositories/MongoBooksRepository';
+
+const container = new Container();
+
+// Регистрация зависимостей
+container.bind(BooksRepository).to(MongoBooksRepository);
+
+export { container };
+```
+
+### Репозиторий книг
+
+Реализован `MongoBooksRepository` с полным набором методов для работы с книгами:
+
+| Метод | Описание |
+|-------|----------|
+| `createBook(book)` | Создание новой книги |
+| `getBook(id)` | Получение книги по ID |
+| `getBooks()` | Получение всех книг |
+| `updateBook(id, data)` | Обновление книги |
+| `deleteBook(id)` | Удаление книги |
+| `findBooksByTitle(title)` | Поиск по названию |
+| `findBooksByAuthor(author)` | Поиск по автору |
+| `getFavoriteBooks()` | Получение избранных книг |
+| `countBooks()` | Подсчёт количества книг |
+
+### Тестирование репозитория
+
+Для тестирования репозитория доступны два вида тестов:
+
+#### 1. Автоматическое тестирование всех методов
+
+Запускает полный цикл тестирования всех методов репозитория:
+
+```bash
+npm run test:all
+```
+
+**Что проверяется:**
+- ✅ Создание книг
+- ✅ Получение списка всех книг
+- ✅ Поиск по ID
+- ✅ Поиск по названию
+- ✅ Поиск по автору
+- ✅ Получение избранных книг
+- ✅ Обновление книг
+- ✅ Удаление книг
+- ✅ Подсчёт количества
+
+**Пример вывода:**
+```
+╔══════════════════════════════════════════════════════════════════╗
+║              🧪 ТЕСТИРОВАНИЕ ВСЕХ МЕТОДОВ REPOSITORY 🧪          ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📝 1. СОЗДАНИЕ КНИГ
+   ✅ Война и мир (ID: abc-123)
+   ✅ Преступление и наказание (ID: def-456)
+
+📚 2. ПОЛУЧЕНИЕ ВСЕХ КНИГ
+   Всего книг: 2
+   1. Война и мир - Лев Толстой
+   2. Преступление и наказание - Фёдор Достоевский
+
+... и так далее
+
+╔══════════════════════════════════════════════════════════════════╗
+║                    🎉 ВСЕ ТЕСТЫ ПРОЙДЕНЫ! 🎉                     ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+#### 2. Интерактивное тестирование
+
+Позволяет вручную тестировать каждый метод в интерактивном режиме:
+
+```bash
+npm run test:interactive
+```
+
+**Возможности интерактивного режима:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    📋 ДОСТУПНЫЕ КОМАНДЫ                      │
+├─────────────────────────────────────────────────────────────┤
+│  1. createBook     - Создать новую книгу                    │
+│  2. getBook        - Найти книгу по ID                      │
+│  3. getBooks       - Получить все книги                     │
+│  4. updateBook     - Обновить книгу                         │
+│  5. deleteBook     - Удалить книгу                          │
+│  6. findByTitle    - Найти книги по названию                │
+│  7. findByAuthor   - Найти книги по автору                  │
+│  8. getFavorites   - Получить избранные книги               │
+│  9. countBooks     - Подсчитать количество книг             │
+│  10. exit          - Выйти из программы                     │
+└─────────────────────────────────────────────────────────────┘
+
+👉 Выберите действие (1-10): 
+```
+
+**Пример сессии:**
+```bash
+👉 Выберите действие (1-10): 1
+
+📝 СОЗДАНИЕ НОВОЙ КНИГИ
+
+Название книги: Война и мир
+Автор(ы): Лев Толстой
+Описание: Роман-эпопея
+Избранное? (true/false): true
+
+✅ Книга успешно создана!
+💡 Сохраните ID для дальнейших операций: ce86b411-8fc3-4556-8e43-7e5401f1ce51
+
+👉 Выберите действие (1-10): 3
+
+📚 ПОЛУЧЕНИЕ ВСЕХ КНИГ
+
+✅ Найдено книг: 1
+
+📖 Список книг:
+  1. "Война и мир" - Лев Толстой (ID: ce86b411-...)
+
+👉 Выберите действие (1-10): 10
+
+👋 До свидания!
+```
 
 ### Интерфейсы
 
@@ -385,25 +527,6 @@ interface IComment {
 }
 ```
 
-### Абстрактные классы
-
-#### BooksRepository
-Абстрактный класс, определяющий контракт для работы с хранилищем книг:
-
-```typescript
-abstract class BooksRepository {
-    abstract createBook(book: ICreateBook): Promise<IBook>;
-    abstract getBook(id: string): Promise<IBook | null>;
-    abstract getBooks(): Promise<IBook[]>;
-    abstract updateBook(id: string, updatedBook: IUpdateBook): Promise<IBook | null>;
-    abstract deleteBook(id: string): Promise<boolean>;
-    abstract findBooksByTitle(title: string): Promise<IBook[]>;
-    abstract findBooksByAuthor(author: string): Promise<IBook[]>;
-    abstract getFavoriteBooks(): Promise<IBook[]>;
-    abstract countBooks(): Promise<number>;
-}
-```
-
 ### Настройки TypeScript
 
 В файле `tsconfig.json` настроены следующие опции:
@@ -413,6 +536,8 @@ abstract class BooksRepository {
   "compilerOptions": {
     "strict": true,
     "strictNullChecks": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "target": "ES2022",
     "module": "commonjs",
     "outDir": "./dist",
@@ -430,9 +555,13 @@ src/
 │   ├── IUser.ts          # Интерфейс пользователя
 │   └── IComment.ts       # Интерфейс комментария
 ├── repositories/
-│   ├── BooksRepository.ts    # Абстрактный класс книг
-│   ├── UserRepository.ts     # Абстрактный класс пользователей
-│   └── CommentRepository.ts  # Абстрактный класс комментариев
+│   ├── BooksRepository.ts      # Абстрактный класс книг
+│   ├── MongoBooksRepository.ts # Реализация с MongoDB
+│   ├── UserRepository.ts       # Абстрактный класс пользователей
+│   └── CommentRepository.ts    # Абстрактный класс комментариев
+├── container.ts           # IoC контейнер
+├── testAllMethods.ts      # Автоматические тесты
+├── testInteractive.ts     # Интерактивные тесты
 └── index.ts              # Точка входа для экспорта
 ```
 
@@ -450,6 +579,12 @@ npm run type-check
 
 # Очистка собранных файлов
 npm run clean
+
+# Запуск автоматических тестов репозитория
+npm run test:all
+
+# Запуск интерактивных тестов репозитория
+npm run test:interactive
 ```
 
 ## Структура проекта
@@ -459,7 +594,10 @@ book-api/
 │
 ├── src/                      # TypeScript исходники
 │   ├── interfaces/           # Интерфейсы сущностей
-│   ├── repositories/         # Абстрактные репозитории
+│   ├── repositories/         # Репозитории (абстрактные и реализация)
+│   ├── container.ts          # IoC контейнер InversifyJS
+│   ├── testAllMethods.ts     # Автоматические тесты
+│   ├── testInteractive.ts    # Интерактивные тесты
 │   └── index.ts              # Точка входа TS
 │
 ├── config/
