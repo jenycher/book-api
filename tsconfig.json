@@ -22,7 +22,6 @@
     "emitDecoratorMetadata": true,
     "types": ["node","reflect-metadata"],
     "allowSyntheticDefaultImports": true
-
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "counter-api"]

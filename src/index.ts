@@ -18,4 +18,4 @@ export * from './repositories/MongoBooksRepository';
 export * from './services/BookService';
 
 // Экспорт контейнера
-export { container, TYPES } from './container';
+export { container } from './container';

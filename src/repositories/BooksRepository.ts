@@ -1,71 +1,74 @@
+import { injectable } from 'inversify';
 import { IBook, ICreateBook, IUpdateBook } from '../interfaces/IBook';
+import { BookModel } from '../models/Book.model';
+import { v4 as uuid } from 'uuid';
 
-/**
- * Абстрактный класс для репозитория книг
- * Определяет контракт для работы с хранилищем книг
- * 
- * @abstract
- * @class BooksRepository
- */
-export abstract class BooksRepository {
-    /**
-     * Создание новой книги
-     * @param {ICreateBook} book - данные для создания книги (без id)
-     * @returns {Promise<IBook>} созданная книга с присвоенным id
-     */
-    abstract createBook(book: ICreateBook): Promise<IBook>;
+@injectable()
+export class BooksRepository {
+    async createBook(book: ICreateBook): Promise<IBook> {
+        if (!book.title) {
+            throw new Error('Title is required');
+        }
+        
+        const newBook = new BookModel({
+            id: uuid(),
+            title: book.title,
+            description: book.description || null,
+            authors: book.authors || null,
+            favorite: book.favorite || false,
+            fileCover: book.fileCover || null,
+            fileName: book.fileName || null,
+            fileBook: book.fileBook || null
+        });
+        
+        await newBook.save();
+        return newBook.toObject();
+    }
 
-    /**
-     * Получение книги по ID
-     * @param {string} id - уникальный идентификатор книги
-     * @returns {Promise<IBook | null>} книга или null, если не найдена
-     */
-    abstract getBook(id: string): Promise<IBook | null>;
+    async getBook(id: string): Promise<IBook | null> {
+        const book = await BookModel.findOne({ id });
+        return book ? book.toObject() : null;
+    }
 
-    /**
-     * Получение всех книг
-     * @returns {Promise<IBook[]>} массив всех книг
-     */
-    abstract getBooks(): Promise<IBook[]>;
+    async getBooks(): Promise<IBook[]> {
+        const books = await BookModel.find().sort({ createdAt: -1 });
+        return books.map(book => book.toObject());
+    }
 
-    /**
-     * Обновление книги
-     * @param {string} id - уникальный идентификатор книги
-     * @param {IUpdateBook} updatedBook - данные для обновления
-     * @returns {Promise<IBook | null>} обновлённая книга или null, если не найдена
-     */
-    abstract updateBook(id: string, updatedBook: IUpdateBook): Promise<IBook | null>;
+    async updateBook(id: string, updatedBook: IUpdateBook): Promise<IBook | null> {
+        const book = await BookModel.findOneAndUpdate(
+            { id },
+            { ...updatedBook, updatedAt: new Date() },
+            { new: true }
+        );
+        return book ? book.toObject() : null;
+    }
 
-    /**
-     * Удаление книги
-     * @param {string} id - уникальный идентификатор книги
-     * @returns {Promise<boolean>} true - успешно удалено, false - книга не найдена
-     */
-    abstract deleteBook(id: string): Promise<boolean>;
+    async deleteBook(id: string): Promise<boolean> {
+        const result = await BookModel.findOneAndDelete({ id });
+        return result !== null;
+    }
 
-    /**
-     * Поиск книг по названию
-     * @param {string} title - название книги (или его часть)
-     * @returns {Promise<IBook[]>} массив найденных книг
-     */
-    abstract findBooksByTitle(title: string): Promise<IBook[]>;
+    async findBooksByTitle(title: string): Promise<IBook[]> {
+        const books = await BookModel.find({ 
+            title: { $regex: title, $options: 'i' } 
+        });
+        return books.map(book => book.toObject());
+    }
 
-    /**
-     * Поиск книг по автору
-     * @param {string} author - автор книги (или его часть)
-     * @returns {Promise<IBook[]>} массив найденных книг
-     */
-    abstract findBooksByAuthor(author: string): Promise<IBook[]>;
+    async findBooksByAuthor(author: string): Promise<IBook[]> {
+        const books = await BookModel.find({ 
+            authors: { $regex: author, $options: 'i' } 
+        });
+        return books.map(book => book.toObject());
+    }
 
-    /**
-     * Получение избранных книг
-     * @returns {Promise<IBook[]>} массив избранных книг
-     */
-    abstract getFavoriteBooks(): Promise<IBook[]>;
+    async getFavoriteBooks(): Promise<IBook[]> {
+        const books = await BookModel.find({ favorite: true });
+        return books.map(book => book.toObject());
+    }
 
-    /**
-     * Подсчёт общего количества книг
-     * @returns {Promise<number>} количество книг
-     */
-    abstract countBooks(): Promise<number>;
+    async countBooks(): Promise<number> {
+        return BookModel.countDocuments();
+    }
 }

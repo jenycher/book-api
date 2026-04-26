@@ -1,14 +1,14 @@
 import 'reflect-metadata';
 import { Container } from 'inversify';
 import { BooksRepository } from './repositories/BooksRepository';
-import { MongoBooksRepository } from './repositories/MongoBooksRepository';
+import { BooksController } from './controllers/BooksController';
 
-// Создание контейнера
 const container = new Container();
 
-// Регистрация зависимостей
-// ВАЖНО: регистрируем реализацию, а не абстрактный класс
-container.bind(BooksRepository).to(MongoBooksRepository);
+// Регистрация репозиториев
+container.bind(BooksRepository).toSelf();
 
-// Экспорт контейнера
+// Регистрация контроллеров
+container.bind(BooksController).toSelf();
+
 export { container };

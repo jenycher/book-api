@@ -1,66 +1,51 @@
-import { IUser, ICreateUser, IUpdateUser } from '../interfaces/IUser';
+import { injectable } from 'inversify';
+import { v4 as uuid } from 'uuid';
+import { UserModel } from '../models/User.model';
+import { PasswordService } from '../services/PasswordService';
+import { IUser, ICreateUser } from '../interfaces/IUser';
 
-/**
- * Абстрактный класс для репозитория пользователей
- * Определяет контракт для работы с хранилищем пользователей
- * 
- * @abstract
- * @class UserRepository
- */
-export abstract class UserRepository {
-    /**
-     * Создание нового пользователя
-     * @param {ICreateUser} user - данные для создания пользователя
-     * @returns {Promise<IUser>} созданный пользователь
-     */
-    abstract createUser(user: ICreateUser): Promise<IUser>;
-
-    /**
-     * Получение пользователя по ID
-     * @param {string} id - уникальный идентификатор пользователя
-     * @returns {Promise<IUser | null>} пользователь или null
-     */
-    abstract getUserById(id: string): Promise<IUser | null>;
-
-    /**
-     * Получение пользователя по email
-     * @param {string} email - email пользователя
-     * @returns {Promise<IUser | null>} пользователь или null
-     */
-    abstract getUserByEmail(email: string): Promise<IUser | null>;
-
-    /**
-     * Получение пользователя по имени
-     * @param {string} username - имя пользователя
-     * @returns {Promise<IUser | null>} пользователь или null
-     */
-    abstract getUserByUsername(username: string): Promise<IUser | null>;
-
-    /**
-     * Получение всех пользователей
-     * @returns {Promise<IUser[]>} массив всех пользователей
-     */
-    abstract getUsers(): Promise<IUser[]>;
-
-    /**
-     * Обновление пользователя
-     * @param {string} id - уникальный идентификатор пользователя
-     * @param {IUpdateUser} updatedUser - данные для обновления
-     * @returns {Promise<IUser | null>} обновлённый пользователь
-     */
-    abstract updateUser(id: string, updatedUser: IUpdateUser): Promise<IUser | null>;
-
-    /**
-     * Удаление пользователя
-     * @param {string} id - уникальный идентификатор пользователя
-     * @returns {Promise<boolean>} true - успешно удалено
-     */
-    abstract deleteUser(id: string): Promise<boolean>;
-
-    /**
-     * Обновление времени последнего входа
-     * @param {string} id - ID пользователя
-     * @returns {Promise<IUser | null>} обновлённый пользователь
-     */
-    abstract updateLastLogin(id: string): Promise<IUser | null>;
+@injectable()
+export class UserRepository {
+    async createUser(user: ICreateUser): Promise<IUser> {
+        const hashedPassword = await PasswordService.hash(user.password);
+        
+        const newUser = new UserModel({
+            id: uuid(),
+            ...user,
+            password: hashedPassword,
+            createdAt: new Date(),
+            lastLogin: null
+        });
+        
+        await newUser.save();
+        return newUser.toObject();
+    }
+    
+    async getUserById(id: string): Promise<IUser | null> {
+        const user = await UserModel.findOne({ id });
+        return user ? user.toObject() : null;
+    }
+    
+    async getUserByEmail(email: string): Promise<IUser | null> {
+        const user = await UserModel.findOne({ email: email.toLowerCase() });
+        return user ? user.toObject() : null;
+    }
+    
+    async getUserByUsername(username: string): Promise<IUser | null> {
+        const user = await UserModel.findOne({ username });
+        return user ? user.toObject() : null;
+    }
+    
+    async updateLastLogin(id: string): Promise<IUser | null> {
+        const user = await UserModel.findOneAndUpdate(
+            { id },
+            { lastLogin: new Date() },
+            { new: true }
+        );
+        return user ? user.toObject() : null;
+    }
+    
+    async comparePassword(user: IUser, candidatePassword: string): Promise<boolean> {
+        return PasswordService.compare(candidatePassword, user.password);
+    }
 }

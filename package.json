@@ -1,11 +1,12 @@
 {
   "name": "book-api",
-  "version": "1.0.1",
-  "description": "CRUD API для книг с загрузкой файлов",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Book API with TypeScript",
+  "main": "dist/app.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node dist/app.js",
+    "dev": "ts-node src/app.ts",
+    "dev:watch": "nodemon --exec ts-node src/app.ts",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "build": "tsc",
@@ -28,6 +29,7 @@
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "ejs": "^5.0.1",
     "express": "^5.2.1",
     "express-ejs-layouts": "^2.5.1",
@@ -44,7 +46,16 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
+    "@types/mongoose": "^5.11.96",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.6.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-local": "^1.0.38",
+    "@types/socket.io": "^3.0.1",
     "@types/uuid": "^10.0.0",
     "nodemon": "^2.0.22",
     "ts-node": "^10.9.2",
